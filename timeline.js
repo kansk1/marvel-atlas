@@ -1,6 +1,6 @@
 'use strict';
 
-const timelineCatalog = new Map(window.MARVEL_CATALOG.map(project => [project.id, project]));
+const timelineCatalog = Atlas.projects;
 const { periods, routes, stories, confirmedOrder, branchLinks } = window.MARVEL_TIMELINE;
 const storiesById = new Map(stories.map(story => [story.id, story]));
 const periodByStory = new Map(periods.flatMap(period => period.ids.map(id => [id, period])));
@@ -14,11 +14,16 @@ const wires = find('#map-wires');
 const viewSelect = find('#timeline-view');
 const search = find('#timeline-search');
 const guide = find('.map-guide');
+const display = find('#map-display');
+const list = find('#map-list');
 const detail = find('#timeline-detail');
 const storyTitle = find('#story-title');
 const storyPoster = find('#story-poster');
 const storyWatch = find('#story-watch');
 const storySource = find('#story-source');
+const storyWatched = find('#story-watched');
+const storyPrep = find('#story-prep');
+const storyPrepList = find('#story-prep-list');
 const spoilerButton = find('#spoiler-toggle');
 const spoilerLabel = spoilerButton.querySelector('span');
 const spoilerPanel = find('#story-spoiler');
@@ -42,9 +47,26 @@ const controls = {
 };
 const camera = createTimelineCamera(viewport, world, controls);
 const cardWidth = 178;
-const cardHeight = 174;
+const posterHeight = Math.round(cardWidth * 1.5);
+const cardHeight = posterHeight + 65;
 const horizontalStep = 223;
-const laneStep = 282;
+const laneStep = cardHeight + 102;
+const prerequisites = {
+  'multiverse-of-madness': [
+    ['doctor-strange', 'Знакомит со Стрэнджем и правилами магии.'],
+    ['wandavision', 'Объясняет, почему личная история Ванды так важна.'],
+  ],
+  'visionquest': [
+    ['wandavision', 'Показывает, где началась история Вижна, которую продолжает этот сериал.'],
+    ['agatha-all-along', 'Продолжает ту же сюжетную линию с другой стороны.'],
+  ],
+  'brand-new-day': [['no-way-home', 'Объясняет, с чего начинается новый этап жизни Питера.']],
+  'daredevil-born-again-2': [['daredevil-born-again', 'Показывает, как Фиск стал мэром и начался конфликт.']],
+  'doomsday': [
+    ['thunderbolts', 'Знакомит с командой и её местом среди героев Marvel.'],
+    ['fantastic-four', 'Знакомит с Фантастической четвёркой и её вселенной.'],
+  ],
+};
 const laneLabels = {
   timeline: 'Основная линия MCU',
   branch: 'Ответвления и другие вселенные',
@@ -54,6 +76,7 @@ const laneLabels = {
 const cardNodes = new Map();
 const mobileSheet = matchMedia('(max-width: 660px)');
 let selected;
+let storyTrigger;
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -66,7 +89,7 @@ function nameOf(story) {
   return [timelineCatalog.get(story.id).title, story.season].filter(Boolean).join(' · ');
 }
 
-function createCard(story, position) {
+function createCard(story, position = null) {
   const button = element('button', story.branch ? 'map-node is-branch' : 'map-node');
   button.type = 'button';
   button.title = nameOf(story);
@@ -81,12 +104,34 @@ function createCard(story, position) {
   const meta = element('span', 'map-node-meta');
   meta.append(element('span', 'map-node-title', nameOf(story)), element('span', 'map-node-time', story.time));
   button.append(poster, meta);
-  button.addEventListener('click', () => openStory(story));
-  button.addEventListener('focus', () => {
-    if (button.matches(':focus-visible')) camera.reveal(position);
-  });
-  cardNodes.set(story.id, { button, position });
+  updateCardProgress(button, story.id);
+  button.addEventListener('click', () => openStory(story, button));
+  if (position) {
+    button.addEventListener('focus', () => {
+      if (button.matches(':focus-visible')) camera.reveal(position);
+    });
+    cardNodes.set(story.id, { button, position });
+  }
   return button;
+}
+
+function updateCardProgress(button, id) {
+  button.classList.toggle('is-watched', Atlas.isWatched(id));
+  button.setAttribute('aria-label', nameOf(storiesById.get(id)) + ' · ' + storiesById.get(id).time +
+    (Atlas.isWatched(id) ? ' · Просмотрено' : ''));
+}
+
+function focusStory(id) {
+  if (!cardNodes.has(id)) {
+    search.value = '';
+    viewSelect.value = periodByStory.get(id).id;
+    renderMap();
+  }
+  const card = cardNodes.get(id);
+  if (list.hidden) camera.focus(card.position, true);
+  const trigger = list.hidden ? card.button : [...list.querySelectorAll('.map-node')].find(button => button.dataset.story === id);
+  if (!list.hidden) trigger?.scrollIntoView({ block: 'center' });
+  openStory(storiesById.get(id), trigger);
 }
 
 function showSpoiler(open) {
@@ -111,35 +156,36 @@ function showSpoiler(open) {
     const story = storiesById.get(id);
     const button = element('button', '', nameOf(story) + ' →');
     button.type = 'button';
-    button.addEventListener('click', () => {
-      if (!cardNodes.has(id)) {
-        search.value = '';
-        viewSelect.value = periodByStory.get(id).id;
-        renderMap();
-      }
-      camera.focus(cardNodes.get(id).position, true);
-      openStory(story);
-    });
+    button.addEventListener('click', () => focusStory(id));
     relatedList.append(button);
   }
 }
 
-function openStory(story) {
-  cardNodes.get(selected?.id)?.button.setAttribute('aria-pressed', 'false');
+function openStory(story, trigger) {
+  storyTrigger?.setAttribute('aria-pressed', 'false');
+  storyTrigger = trigger;
   selected = story;
-  cardNodes.get(story.id).button.setAttribute('aria-pressed', 'true');
+  trigger?.setAttribute('aria-pressed', 'true');
   const project = timelineCatalog.get(story.id);
   detail.hidden = false;
   storyTitle.textContent = nameOf(story);
   find('#story-meta').textContent = story.time + ' · ' + project.type;
   find('#story-premise').textContent = story.premise;
   find('#story-fact').textContent = story.fact;
-  storySource.hidden = !story.source;
-  if (story.source) storySource.href = story.source;
-  else storySource.removeAttribute('href');
+  storySource.hidden = !Atlas.safeLink(storySource, story.source);
   storyPoster.src = project.poster;
-  storyWatch.href = project.href;
-  storyWatch.querySelector('span').textContent = project.searchLink ? 'Найти на Rezka' : 'Открыть на Rezka';
+  storyWatch.querySelector('span').textContent = Atlas.projectLink(storyWatch, project);
+  Atlas.setWatchedButton(storyWatched, project);
+  const suggestions = prerequisites[story.id] || [];
+  storyPrep.hidden = !suggestions.length;
+  storyPrepList.replaceChildren(...suggestions.map(([id, reason]) => {
+    const item = element('li', '', reason);
+    const button = element('button', '', timelineCatalog.get(id).title);
+    button.type = 'button';
+    button.addEventListener('click', () => focusStory(id));
+    item.prepend(button);
+    return item;
+  }));
   showSpoiler(false);
   detail.scrollTop = 0;
   storyTitle.focus({ preventScroll: true });
@@ -147,7 +193,7 @@ function openStory(story) {
 }
 
 function keepCardInSight() {
-  if (!mobileSheet.matches) return;
+  if (!mobileSheet.matches || !list.hidden) return;
   const { position } = cardNodes.get(selected.id);
   const sheetTop = detail.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
   camera.keepAbove(position, sheetTop);
@@ -155,10 +201,11 @@ function keepCardInSight() {
 
 function closeStory(restoreFocus = true) {
   if (detail.hidden) return;
-  const previous = cardNodes.get(selected.id)?.button;
+  const previous = storyTrigger;
   showSpoiler(false);
   detail.hidden = true;
   previous?.setAttribute('aria-pressed', 'false');
+  storyTrigger = undefined;
   selected = undefined;
   if (restoreFocus) previous?.focus({ preventScroll: true });
 }
@@ -244,11 +291,22 @@ function drawLane(group, index, searching) {
     if (!next || searching) continue;
     const edge = wireBetween(kind, id, next);
     if (!edge) continue;
-    const midY = position.y + 77;
+    const midY = position.y + posterHeight / 2;
     addWire(`M ${position.x + cardWidth + 2} ${midY} H ${position.x + horizontalStep - 5}`, edge);
   }
   lanesElement.append(section);
-  return { x, y, kind, width };
+  return { x, y, kind, width, cardHeight };
+}
+
+function drawList(groups) {
+  list.replaceChildren(...groups.map(group => {
+    const section = element('section', 'map-list-group');
+    const cards = element('div', 'map-list-cards');
+    cards.append(...group.ids.map(id => createCard(storiesById.get(id))));
+    section.append(element('h2', '', group.title), cards);
+    return section;
+  }));
+  list.scrollTop = 0;
 }
 
 function renderMap() {
@@ -264,8 +322,8 @@ function renderMap() {
   const status = query ? 'Результаты поиска' : route?.title || period?.title || 'Вся хронология';
   find('#map-status').textContent = status + ' · ' + projectCount(count);
   find('#map-empty').hidden = count !== 0;
-  find('#map-controls').hidden = count === 0;
-  controls.minimap.hidden = count === 0;
+  controls.minimap.hidden = count === 0 || !list.hidden;
+  find('#map-controls').hidden = count === 0 || !list.hidden;
   cardNodes.clear();
   lanesElement.replaceChildren();
   wires.replaceChildren(createMarkers());
@@ -274,15 +332,20 @@ function renderMap() {
     for (const [index, lane] of lanes.entries()) {
       const nextLane = lanes[index + 1];
       if (lane.kind !== 'timeline' || nextLane?.kind !== 'timeline') continue;
-      addWire(`M 24 ${lane.y + 234} V ${nextLane.y + 9} H 41`, { className: 'chronology-wire', marker: 'gold' });
+      addWire(`M 24 ${lane.y + 60 + cardHeight} V ${nextLane.y + 9} H 41`, { className: 'chronology-wire', marker: 'gold' });
     }
   }
   const width = Math.max(320, ...lanes.map(lane => lane.x + lane.width + 42));
-  const height = Math.max(200, (lanes.length - 1) * laneStep + 278);
+  const height = Math.max(200, (lanes.length - 1) * laneStep + 104 + cardHeight);
   wires.setAttribute('viewBox', `0 0 ${width} ${height}`);
   world.style.setProperty('--node-width', cardWidth + 'px');
   world.style.setProperty('--node-height', cardHeight + 'px');
-  camera.setScene({ width, height, lanes });
+  world.style.setProperty('--poster-height', posterHeight + 'px');
+  if (list.hidden) {
+    camera.setScene({ width, height, lanes });
+  } else {
+    drawList(groups);
+  }
 }
 
 function appendOptions(label, views) {
@@ -303,9 +366,27 @@ viewSelect.addEventListener('change', () => {
   renderMap();
 });
 search.addEventListener('input', renderMap);
+display.addEventListener('click', () => {
+  list.hidden = !list.hidden;
+  viewport.hidden = !list.hidden;
+  display.textContent = list.hidden ? 'Список' : 'Карта';
+  renderMap();
+});
+storyWatched.addEventListener('click', () => {
+  if (selected) Atlas.toggleWatched(selected.id);
+});
+Atlas.onProgress(() => {
+  for (const button of document.querySelectorAll('.map-node')) updateCardProgress(button, button.dataset.story);
+  if (selected) Atlas.setWatchedButton(storyWatched, timelineCatalog.get(selected.id));
+});
 spoilerButton.addEventListener('click', () => {
-  showSpoiler(spoilerPanel.hidden);
+  const opening = spoilerPanel.hidden;
+  showSpoiler(opening);
   keepCardInSight();
+  if (opening) {
+    spoilerHeading.focus({ preventScroll: true });
+    detail.scrollTop += Math.max(0, spoilerPanel.getBoundingClientRect().top - sheetHandle.getBoundingClientRect().bottom - 8);
+  }
 });
 find('#story-close').addEventListener('click', () => closeStory());
 document.addEventListener('keydown', event => {

@@ -2,6 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org/js/telegram-web-app.js; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#08090b">
   <meta name="description" content="Хронология Marvel по времени действия. Главные события MCU, альтернативные ветки и короткие спойлеры.">
@@ -9,9 +11,10 @@
   <link rel="icon" href="assets/atlas.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="timeline.css">
-  <script defer src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <script defer src="https://telegram.org/js/telegram-web-app.js?64" integrity="sha384-PyI6uk8O3pfRRl4+CaepaS++FqtEbco/HaV3jzdYl4y+U7HMQvn3gWVfKhjuzfzG" crossorigin="anonymous"></script>
   <script defer src="telegram-init.js"></script>
   <script defer src="catalog.js"></script>
+  <script defer src="atlas.js"></script>
   <script defer src="timeline-data.js"></script>
   <script defer src="timeline-camera.js"></script>
   <script defer src="timeline.js"></script>
@@ -52,6 +55,7 @@
         <p><a href="https://dk.com/products/9780241543825-marvel-studios-the-marvel-cinematic-universe-an-official-timeline" target="_blank" rel="noopener noreferrer">Путеводитель Marvel Studios</a> · <a href="https://www.disneyplus.com/ja-jp/explore/articles/mcu-series" target="_blank" rel="noopener noreferrer">Хронология Disney+</a></p>
       </div>
     </details>
+    <button type="button" id="map-display" class="map-mode" aria-controls="map-viewport map-list">Список</button>
   </header>
 
   <main class="map-stage" id="timeline" aria-label="Доска хронологии">
@@ -63,6 +67,7 @@
         <div id="map-lanes"></div>
       </div>
     </div>
+    <div class="map-list" id="map-list" aria-label="Список проектов" hidden></div>
     <p class="map-empty" id="map-empty" hidden>Ничего не найдено. Попробуй другое название.</p>
 
     <button class="map-minimap" id="map-minimap" type="button" aria-label="Мини-карта. Enter показывает всю карту">
@@ -85,13 +90,17 @@
         </button>
       </div>
       <img class="story-poster" id="story-poster" alt="" width="320" height="480">
+      <div class="story-heading" aria-live="polite">
+        <p class="eyebrow" id="story-meta"></p>
+        <h2 id="story-title" tabindex="-1"></h2>
+      </div>
       <div class="story-info">
-        <div class="story-heading" aria-live="polite">
-          <p class="eyebrow" id="story-meta"></p>
-          <h2 id="story-title" tabindex="-1"></h2>
-        </div>
         <p class="story-premise" id="story-premise"></p>
         <p class="story-fact"><strong>Важно знать</strong><span id="story-fact"></span></p>
+        <div id="story-prep" class="story-prep" hidden>
+          <strong>Что посмотреть перед этим</strong>
+          <ul id="story-prep-list"></ul>
+        </div>
         <a class="story-source" id="story-source" target="_blank" rel="noopener noreferrer" hidden>Источник ↗</a>
         <div class="story-actions">
           <button class="action action-primary" id="spoiler-toggle" type="button" aria-expanded="false" aria-controls="story-spoiler">
@@ -101,10 +110,11 @@
             <span>Открыть на Rezka</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7m-8 0h8v8"/></svg>
           </a>
+          <button type="button" class="action action-secondary" id="story-watched" aria-pressed="false"></button>
         </div>
       </div>
       <div class="story-spoiler" id="story-spoiler" hidden>
-        <p class="eyebrow" id="spoiler-heading">Спойлеры</p>
+        <h3 class="eyebrow" id="spoiler-heading" tabindex="-1">Спойлеры</h3>
         <p class="spoiler-status" id="spoiler-status" hidden></p>
         <dl id="spoiler-fields">
           <div><dt>Что произошло</dt><dd id="spoiler-summary"></dd></div>

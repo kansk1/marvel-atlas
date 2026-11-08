@@ -54,11 +54,11 @@ function createTimelineCamera(viewport, world, controls) {
     miniViewport.setAttribute('height', screen.height / scale);
   }
 
-  function update(x, y, scale, isFit = false) {
+  function update(x, y, scale, isFit = false, availableHeight = screen.height) {
     fitted = isFit;
     view = {
       x: limitOrigin(x, scene.width * scale, screen.width),
-      y: limitOrigin(y, scene.height * scale, screen.height),
+      y: limitOrigin(y, scene.height * scale, availableHeight),
       scale,
     };
     if (!frame) frame = requestAnimationFrame(draw);
@@ -80,13 +80,13 @@ function createTimelineCamera(viewport, world, controls) {
       rect.setAttribute('x', lane.x);
       rect.setAttribute('y', lane.y + 48);
       rect.setAttribute('width', lane.width);
-      rect.setAttribute('height', 128);
+      rect.setAttribute('height', lane.cardHeight);
       rect.setAttribute('rx', 12);
       rect.setAttribute('class', lane.kind === 'timeline' ? 'mini-main' : 'mini-alt');
       return rect;
     });
     controls.miniSvg.replaceChildren(...marks, miniViewport);
-    update(24, 48, screen.width < 660 ? .76 : .94);
+    update(24, 48, screen.width <= 660 ? .76 : .94);
   }
 
   function zoomAt(factor, point = { x: screen.width / 2, y: screen.height / 2 }) {
@@ -113,9 +113,15 @@ function createTimelineCamera(viewport, world, controls) {
   function keepAbove(position, sheetTop) {
     const top = view.y + position.y * view.scale;
     const bottom = top + position.height * view.scale;
-    if (bottom < sheetTop - 10 && top >= 38) return;
-    const target = Math.max(38, sheetTop - 14 - position.height * view.scale);
-    update(view.x, target - position.y * view.scale, view.scale);
+    const left = view.x + position.x * view.scale;
+    const right = left + position.width * view.scale;
+    if (bottom < sheetTop - 10 && top >= 12 && left >= 0 && right <= screen.width) return;
+    const availableHeight = Math.max(1, Math.min(screen.height, sheetTop - 10));
+    const scale = Math.max(minScale(), Math.min(view.scale, (availableHeight - 16) / position.height, (screen.width - 20) / position.width));
+    const width = position.width * scale;
+    const center = clamp((left + right) / 2, 10 + width / 2, screen.width - 10 - width / 2);
+    const target = Math.max(12, availableHeight - 4 - position.height * scale);
+    update(center - width / 2 - position.x * scale, target - position.y * scale, scale, false, availableHeight);
   }
 
   const positionOf = event => {

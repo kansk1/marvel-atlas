@@ -2,15 +2,18 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org/js/telegram-web-app.js; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#08090b">
   <meta name="description" content="Две саги и шесть фаз Marvel. Фильмы, сериалы и спецвыпуски в порядке выхода.">
   <title>MARVEL ATLAS — Каталог киновселенной</title>
   <link rel="icon" href="assets/atlas.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script defer src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <script defer src="https://telegram.org/js/telegram-web-app.js?64" integrity="sha384-PyI6uk8O3pfRRl4+CaepaS++FqtEbco/HaV3jzdYl4y+U7HMQvn3gWVfKhjuzfzG" crossorigin="anonymous"></script>
   <script defer src="telegram-init.js"></script>
   <script defer src="catalog.js"></script>
+  <script defer src="atlas.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -34,27 +37,48 @@
   </header>
 
   <main>
-    <section class="hero" aria-labelledby="hero-title">
+    <section class="hero" aria-label="Новые проекты Marvel">
       <div class="hero-art" aria-hidden="true">
-        <img class="hero-image is-active" data-art="infinity" src="assets/hero-infinity.jpg" alt="" fetchpriority="high">
-        <img class="hero-image" data-art="multiverse" src="assets/hero-multiverse.jpg" alt="">
+        <img class="hero-image is-active" id="hero-image" src="assets/hero-doomsday.jpg" alt="" fetchpriority="high">
       </div>
       <div class="hero-inner shell">
         <div class="hero-content">
-          <p class="eyebrow"><span class="accent-dot"></span><span id="hero-label">Сага Бесконечности · 2008–2019</span></p>
-          <h1 id="hero-title">Мстители:<br>Финал</h1>
+          <p class="eyebrow"><span class="accent-dot"></span><span id="hero-label">Ожидается</span></p>
+          <h1 id="hero-title">Мстители: Доктор Дум</h1>
           <p class="hero-meta" id="hero-meta"></p>
           <p class="hero-description" id="hero-description"></p>
           <div class="hero-actions">
             <a class="action action-primary" id="hero-link" target="_blank" rel="noopener noreferrer"></a>
-            <a class="action action-secondary" href="#catalog">К каталогу <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-5-5 5 5 5-5"/></svg></a>
+            <a class="action action-secondary" href="#upcoming">Ожидается <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-5-5 5 5 5-5"/></svg></a>
           </div>
         </div>
-        <div class="hero-index" aria-label="Сменить сагу">
-          <span id="hero-index">01</span><span class="index-divider"></span><span>02</span>
-          <button type="button" data-next-saga class="round" aria-label="Следующая сага"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        <div class="hero-index" role="group" aria-label="Переключение проектов">
+          <button type="button" id="hero-prev" class="round" aria-label="Предыдущий проект"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+          <span id="hero-index">01 / 05</span>
+          <button type="button" id="hero-next" class="round" aria-label="Следующий проект"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+          <button type="button" id="hero-pause" class="round" aria-label="Остановить автопереключение">Ⅱ</button>
+          <span id="hero-announcement" class="sr-only" role="status"></span>
         </div>
       </div>
+    </section>
+
+    <section class="shell progress-section" aria-labelledby="progress-title">
+      <div class="progress-card">
+        <div>
+          <p class="eyebrow">Мой просмотр</p>
+          <h2 id="progress-title">Дальше по маршруту</h2>
+          <p id="progress-count" class="catalog-meta" aria-live="polite"></p>
+        </div>
+        <div id="progress-next" class="progress-next"></div>
+      </div>
+    </section>
+
+    <section class="shell upcoming-section" id="upcoming" aria-labelledby="upcoming-title">
+      <div class="upcoming-heading">
+        <div><p class="eyebrow">Календарь Marvel</p><h2 id="upcoming-title">Ожидается</h2></div>
+        <p class="catalog-meta">Анонсированные премьеры. Даты могут меняться.</p>
+      </div>
+      <ul id="upcoming-releases" class="upcoming-releases"></ul>
     </section>
 
     <section class="catalog shell" id="catalog" aria-labelledby="catalog-title">

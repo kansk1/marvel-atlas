@@ -14,19 +14,28 @@ const sagas = {
     name: 'Сага Бесконечности',
     index: '01',
     phases: [1, 2, 3],
-    feature: 'endgame',
-    headline: ['Мстители:', 'Финал'],
-    description: 'После щелчка Таноса оставшиеся Мстители ищут способ вернуть тех, кого потеряли.',
   },
   multiverse: {
     name: 'Сага мультивселенной',
     index: '02',
     phases: [4, 5, 6],
-    feature: 'wandavision',
-    headline: ['Ванда/', 'Вижн'],
-    description: 'Ванда и Вижн живут как герои старого ситкома. Но в их идеальном пригороде что-то идёт не по сценарию.',
   },
 };
+const recent = [
+  { id: 'doomsday', title: 'Мстители: Доктор Дум', date: '2026-12-18', art: 'assets/hero-doomsday.jpg', description: 'Герои трёх вселенных сталкиваются с общей угрозой. Роберт Дауни — младший возвращается в Marvel в роли Доктора Дума.' },
+  { id: 'visionquest', title: 'Квест Вижна', date: '2026-10-14', description: 'Вижн ищет своё место в мире. История продолжает линию «Ванды/Вижна» и «Это всё Агата».' },
+  { id: 'brand-new-day', date: '2026-07-31', description: 'Питер Паркер снова защищает Нью-Йорк, а внезапные перемены в его способностях ставят его перед новым выбором.' },
+  { id: 'punisher', date: '2026-05-12', description: 'Фрэнк Касл пытается оставить прошлое позади, но новая угроза вынуждает его вернуться к борьбе.' },
+  { id: 'daredevil-born-again-2', date: '2026-03-24', art: 'assets/hero-daredevil-2.jpg', description: 'Сорвиголова и его союзники пытаются разоблачить Уилсона Фиска, пока власти Нью-Йорка охотятся за людьми в масках.' },
+  { id: 'wonder-man', date: '2026-01-27', description: 'Актёр Саймон Уильямс скрывает сверхспособности и пытается получить роль в фильме о Чудо-человеке.' },
+].sort((a, b) => b.date.localeCompare(a.date));
+const recentDates = new Map(recent.map(({ id, date }) => [id, date]));
+
+function byRelease(a, b) {
+  const aDate = recentDates.get(a.id);
+  const bDate = recentDates.get(b.id);
+  return a.year - b.year || (aDate && bDate ? aDate.localeCompare(bDate) : a.number - b.number);
+}
 
 const phaseNames = {
   1: 'Сбор команды',
@@ -37,8 +46,8 @@ const phaseNames = {
   6: 'Новые вселенные',
 };
 const order = {
-  release: (a, b) => a.number - b.number,
-  latest: (a, b) => b.number - a.number,
+  release: byRelease,
+  latest: (a, b) => byRelease(b, a),
   rating: (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || a.number - b.number,
 };
 
@@ -84,10 +93,7 @@ function twoDigits(number) {
 }
 
 function setProjectLink(anchor, project) {
-  anchor.href = project.href;
-  anchor.target = '_blank';
-  anchor.rel = 'noopener noreferrer';
-  anchor.title = project.searchLink ? 'Найти на Rezka' : 'Открыть на Rezka';
+  return Atlas.projectLink(anchor, project);
 }
 
 function makePoster(project, number = false) {
@@ -115,13 +121,24 @@ function makePoster(project, number = false) {
 }
 
 function makeCard(project) {
+  const tile = element('div', 'card-tile');
   const anchor = element('a', 'card');
   setProjectLink(anchor, project);
   const info = element('span', 'card-info');
-  const details = project.searchLink ? project.year + ' · Поиск на Rezka' : project.year + ' · ' + project.type;
+  const announcement = Atlas.announcements.get(project.id);
+  const details = announcement ? Atlas.releaseText(announcement) : project.year + ' · ' + project.type;
   info.append(element('span', '', details), element('span', 'card-rating', '★ ' + rating(project)));
   anchor.append(makePoster(project, true), element('span', 'card-title', project.title), info);
-  return anchor;
+  tile.append(anchor);
+  if (!announcement) {
+    const button = element('button', 'watch-mark');
+    button.type = 'button';
+    button.dataset.watch = project.id;
+    Atlas.setWatchedButton(button, project, true);
+    button.addEventListener('click', () => Atlas.toggleWatched(project.id));
+    tile.append(button);
+  }
+  return tile;
 }
 
 function arrow(label, icon) {
@@ -189,31 +206,16 @@ function renderFilters(phases) {
 function renderSaga() {
   const saga = sagas[state.saga];
   const entries = projects.filter(project => saga.phases.includes(project.phase));
-  const feature = entries.find(project => project.id === saga.feature);
   const years = yearRange(entries);
   document.body.dataset.saga = state.saga;
   for (const button of sagaButtons) button.setAttribute('aria-pressed', String(button.dataset.saga === state.saga));
-  for (const image of document.querySelectorAll('[data-art]')) image.classList.toggle('is-active', image.dataset.art === state.saga);
-
-  $('#hero-label').textContent = saga.name + ' · ' + years;
-  $('#hero-title').replaceChildren(saga.headline[0], element('br'), saga.headline[1]);
-  $('#hero-description').textContent = saga.description;
-  $('#hero-meta').replaceChildren(
-    element('span', '', feature.year),
-    element('span', '', feature.type),
-    element('span', '', 'Фаза ' + feature.phase),
-    element('span', 'hero-rating', '★ ' + rating(feature))
-  );
-  const heroLink = $('#hero-link');
-  setProjectLink(heroLink, feature);
-  heroLink.innerHTML = icons.play + 'Открыть на Rezka';
-  $('#hero-index').textContent = saga.index;
   $('#catalog-kicker').textContent = 'Каталог MCU / ' + saga.index;
   $('#catalog-title').textContent = saga.name;
   $('#catalog-meta').textContent = years + ' · ' + projectCount(entries.length) + ' · Фазы ' + saga.phases[0] + '–' + saga.phases.at(-1);
   $('#collection-link').hidden = state.saga !== 'multiverse';
   renderFilters(saga.phases);
   renderShelves();
+  renderProgress();
 }
 
 function selectSaga(saga) {
@@ -221,6 +223,95 @@ function selectSaga(saga) {
   state.saga = saga;
   state.phase = null;
   renderSaga();
+  $('#catalog').scrollIntoView();
+}
+
+const hero = $('.hero');
+const heroImage = $('#hero-image');
+const pause = $('#hero-pause');
+let heroIndex = 0;
+let heroPaused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let heroTimer;
+
+function renderHero(announce = false) {
+  const item = recent[heroIndex];
+  const project = Atlas.projects.get(item.id);
+  const announcement = Atlas.announcements.get(item.id);
+  const title = item.title || project.title;
+  heroImage.src = item.art || project.poster;
+  heroImage.dataset.art = item.art ? item.id : 'poster';
+  $('#hero-label').textContent = Atlas.upcomingIds.has(item.id) ? 'Ожидается' : 'Новые проекты Marvel';
+  $('#hero-title').textContent = title;
+  $('#hero-description').textContent = item.description;
+  $('#hero-meta').replaceChildren(element('span', '', announcement ? Atlas.releaseText(announcement) : project.year),
+    element('span', '', project.type), element('span', '', 'Фаза ' + project.phase));
+  const link = $('#hero-link');
+  const label = setProjectLink(link, project);
+  link.innerHTML = announcement ? icons.external : icons.play;
+  link.classList.toggle('is-premiere', Boolean(announcement));
+  link.append(label);
+  $('#hero-index').textContent = twoDigits(heroIndex + 1) + ' / ' + twoDigits(recent.length);
+  if (announce) $('#hero-announcement').textContent = title;
+}
+
+function scheduleHero() {
+  clearTimeout(heroTimer);
+  pause.textContent = heroPaused ? '▶' : 'Ⅱ';
+  pause.setAttribute('aria-label', heroPaused ? 'Включить автопереключение' : 'Остановить автопереключение');
+  if (heroPaused || document.hidden || hero.matches(':focus-within, :hover')) return;
+  heroTimer = setTimeout(() => {
+    heroIndex = (heroIndex + 1) % recent.length;
+    renderHero();
+    scheduleHero();
+  }, 10000);
+}
+
+function stepHero(delta) {
+  heroIndex = (heroIndex + delta + recent.length) % recent.length;
+  heroPaused = true;
+  renderHero(true);
+  scheduleHero();
+}
+
+function renderProgress() {
+  const phases = sagas[state.saga].phases;
+  const available = projects.filter(project => phases.includes(project.phase) && !Atlas.announcements.has(project.id))
+    .sort((a, b) => a.phase - b.phase || byRelease(a, b));
+  const next = available.find(project => !Atlas.isWatched(project.id));
+  const watched = available.filter(project => Atlas.isWatched(project.id)).length;
+  const phase = next ? available.filter(project => project.phase === next.phase) : [];
+  const phaseProgress = next ? ' · Фаза ' + next.phase + ' · ' + phase.filter(project => Atlas.isWatched(project.id)).length + ' из ' + phase.length : '';
+  $('#progress-count').textContent = sagas[state.saga].name + ' · ' + watched + ' из ' + available.length + phaseProgress;
+  const panel = $('#progress-next');
+  if (!next) {
+    panel.replaceChildren(element('p', '', 'Все доступные проекты саги отмечены как просмотренные.'));
+    return;
+  }
+  const link = element('a', 'action action-primary');
+  link.textContent = setProjectLink(link, next);
+  const button = element('button', 'action action-secondary');
+  button.type = 'button';
+  Atlas.setWatchedButton(button, next);
+  button.addEventListener('click', () => {
+    Atlas.toggleWatched(next.id);
+    (panel.querySelector('button') || $('#progress-title')).focus({ preventScroll: true });
+  });
+  panel.replaceChildren(element('strong', '', next.title), link, button);
+}
+
+function renderUpcoming() {
+  $('#upcoming-releases').replaceChildren(...Atlas.upcoming.map(release => {
+    const row = element('li', 'release');
+    const posterProject = Atlas.projects.get(release.posterId || release.id);
+    const art = posterProject ? makePoster(posterProject) : element('span', 'release-placeholder', 'M');
+    const copy = element('div', 'release-copy');
+    const source = element('a', 'source-link', 'Источник ↗');
+    Atlas.safeLink(source, release.source);
+    source.setAttribute('aria-label', 'Источник даты · ' + release.title);
+    copy.append(element('h3', '', release.title), element('p', '', Atlas.releaseText(release)), source);
+    row.append(art, copy);
+    return row;
+  }));
 }
 
 function normalize(query) {
@@ -258,7 +349,22 @@ function renderSearch() {
 }
 
 for (const button of sagaButtons) button.addEventListener('click', () => selectSaga(button.dataset.saga));
-$('[data-next-saga]').addEventListener('click', () => selectSaga(state.saga === 'infinity' ? 'multiverse' : 'infinity'));
+$('#hero-prev').addEventListener('click', () => stepHero(-1));
+$('#hero-next').addEventListener('click', () => stepHero(1));
+pause.addEventListener('click', () => {
+  heroPaused = !heroPaused;
+  scheduleHero();
+});
+for (const event of ['focusin', 'focusout', 'mouseenter', 'mouseleave']) {
+  hero.addEventListener(event, () => queueMicrotask(scheduleHero));
+}
+document.addEventListener('visibilitychange', scheduleHero);
+Atlas.onProgress(() => {
+  for (const button of document.querySelectorAll('[data-watch]')) {
+    Atlas.setWatchedButton(button, Atlas.projects.get(button.dataset.watch), true);
+  }
+  renderProgress();
+});
 $('#sort').addEventListener('change', event => {
   state.sort = event.target.value;
   renderShelves();
@@ -280,3 +386,6 @@ dialog.addEventListener('click', event => {
   if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
 });
 renderSaga();
+renderUpcoming();
+renderHero();
+scheduleHero();

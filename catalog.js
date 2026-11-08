@@ -791,5 +791,17 @@ window.MARVEL_CATALOG = [
     "href": "https://rezka.fi/films/fiction/91297-mstiteli-doktor-dum-2026.html",
     "searchLink": false,
     "poster": "assets/doomsday.jpg"
+  },
+  {
+    "id": "daredevil-born-again-2",
+    "phase": 6,
+    "number": 39,
+    "title": "Сорвиголова: Рождённый заново · 2 сезон",
+    "english": "Daredevil: Born Again Season 2",
+    "year": 2026,
+    "rating": null,
+    "type": "Сериал",
+    "href": "https://www.disneyplus.com/browse/entity-85e7a914-c8e6-41db-95df-c740dc2cf1b7",
+    "poster": "assets/daredevil-born-again.jpg"
   }
 ];
