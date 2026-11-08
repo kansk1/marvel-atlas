@@ -32,38 +32,48 @@
     <div class="timeline-intro">
       <p class="eyebrow"><span class="accent-dot"></span> Время действия</p>
       <h1>Хронология</h1>
-      <p class="timeline-lead">События киновселенной Marvel в порядке сюжета. Выбери проект, чтобы узнать, где он стоит на временной линии.</p>
+      <p class="timeline-lead">61 проект по времени действия. Перемещайся между эпохами или проследи историю героя от фильма к фильму.</p>
     </div>
 
     <section class="timeline-board" aria-labelledby="main-track-title">
       <div class="timeline-toolbar">
         <div>
-          <p class="timeline-lane-kicker">01 / ХРОНОЛОГИЯ</p>
-          <h2 id="main-track-title">Основная линия MCU</h2>
+          <p class="timeline-lane-kicker">КАРТА СОБЫТИЙ</p>
+          <h2 id="main-track-title">Карта MCU</h2>
         </div>
-        <div class="timeline-tools">
-          <div class="timeline-eras" id="timeline-eras" role="group" aria-label="Перейти к периоду"></div>
-          <div class="timeline-arrows" id="timeline-arrows">
-            <button class="round" id="timeline-prev" type="button" aria-label="Прокрутить к более ранним событиям">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
-            </button>
-            <button class="round" id="timeline-next" type="button" aria-label="Прокрутить к более поздним событиям">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>
-            </button>
-          </div>
-        </div>
+        <label class="timeline-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></svg>
+          <span class="sr-only">Найти проект на карте</span>
+          <input id="timeline-search" type="search" placeholder="Найти проект" autocomplete="off">
+        </label>
       </div>
 
+      <div class="timeline-groups">
+        <div class="timeline-group">
+          <p class="timeline-group-label" id="periods-label">Периоды</p>
+          <div class="timeline-eras" id="timeline-periods" role="group" aria-labelledby="periods-label"></div>
+        </div>
+        <div class="timeline-group timeline-route-group">
+          <p class="timeline-group-label" id="routes-label">Маршруты</p>
+          <div class="timeline-eras" id="timeline-routes" role="group" aria-labelledby="routes-label"></div>
+        </div>
+      </div>
+      <div class="timeline-viewbar">
+        <div aria-live="polite">
+          <h3 id="timeline-view-title"></h3>
+          <p id="timeline-view-count"></p>
+        </div>
+        <div class="timeline-arrows" id="timeline-arrows">
+          <button class="round" id="timeline-prev" type="button" aria-label="Прокрутить карту влево">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <button class="round" id="timeline-next" type="button" aria-label="Прокрутить карту вправо">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
       <p class="sr-only" id="timeline-instructions">Выбери карточку, чтобы открыть сведения. Стрелки позволяют прокрутить шкалу.</p>
       <ol class="timeline-track" id="timeline-track" aria-describedby="timeline-instructions"></ol>
-
-      <section class="timeline-branches" aria-labelledby="branches-title">
-        <div>
-          <p class="timeline-lane-kicker">02 / МУЛЬТИВСЕЛЕННАЯ</p>
-          <h2 id="branches-title">Вне основной шкалы</h2>
-        </div>
-        <ul id="timeline-branches"></ul>
-      </section>
     </section>
 
     <article class="timeline-detail" id="timeline-detail" aria-labelledby="story-title">
@@ -75,6 +85,7 @@
         </div>
         <p class="story-premise" id="story-premise"></p>
         <p class="story-fact"><strong>Важно знать</strong><span id="story-fact"></span></p>
+        <a class="story-source" id="story-source" target="_blank" rel="noopener noreferrer" hidden>Источник ↗</a>
         <div class="story-actions">
           <button class="action action-primary" id="spoiler-toggle" type="button" aria-expanded="false" aria-controls="story-spoiler">
             <span>Открыть спойлер</span>
@@ -86,20 +97,21 @@
         </div>
       </div>
       <div class="story-spoiler" id="story-spoiler" hidden>
-        <p class="eyebrow">Спойлеры</p>
-        <dl>
+        <p class="eyebrow" id="spoiler-heading">Спойлеры</p>
+        <p class="spoiler-status" id="spoiler-status" hidden></p>
+        <dl id="spoiler-fields">
           <div><dt>Что произошло</dt><dd id="spoiler-summary"></dd></div>
           <div><dt>Чем закончилось</dt><dd id="spoiler-ending"></dd></div>
           <div><dt>К чему привело</dt><dd id="spoiler-impact"></dd></div>
         </dl>
-        <div class="story-related">
+        <div class="story-related" id="related-section">
           <p>Связанные проекты</p>
           <div id="story-related"></div>
         </div>
       </div>
     </article>
 
-    <p class="timeline-source">На шкале указано время основного действия. Даты сверены с <a href="https://dk.com/products/9780241543825-marvel-studios-the-marvel-cinematic-universe-an-official-timeline" target="_blank" rel="noopener noreferrer">официальной хронологией Marvel Studios</a>.</p>
+    <p class="timeline-source">Годы относятся к основному действию. Пометка «около» означает приблизительную дату. Маршруты связывают истории героев. <a href="https://dk.com/products/9780241543825-marvel-studios-the-marvel-cinematic-universe-an-official-timeline" target="_blank" rel="noopener noreferrer">Путеводитель Marvel Studios</a> · <a href="https://www.disneyplus.com/ja-jp/explore/articles/mcu-series" target="_blank" rel="noopener noreferrer">Хронология Disney+</a></p>
   </main>
   <footer class="shell footer">
     <span class="footer-brand">MARVEL ATLAS</span>
