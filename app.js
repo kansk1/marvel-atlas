@@ -227,19 +227,44 @@ function selectSaga(saga) {
 }
 
 const hero = $('.hero');
-const heroImage = $('#hero-image');
-const pause = $('#hero-pause');
+const heroContent = $('.hero-content', hero);
+let [heroImage, heroBuffer] = hero.querySelectorAll('.hero-image');
+const heroPages = $('#hero-pages');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let heroIndex = 0;
-let heroPaused = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let heroTimer;
+let heroChanging = false;
+let heroGesture;
+
+const heroDots = recent.map((item, index) => {
+  const button = element('button');
+  button.type = 'button';
+  button.setAttribute('aria-label', item.title || Atlas.projects.get(item.id).title);
+  button.addEventListener('click', () => changeHero(index));
+  button.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const next = wrapHero(index + (event.key === 'ArrowRight' ? 1 : -1));
+    heroDots[next].focus();
+    changeHero(next);
+  });
+  heroPages.append(button);
+  return button;
+});
+
+function wrapHero(index) {
+  return (index + recent.length) % recent.length;
+}
+
+function setHeroImage(image, item) {
+  image.dataset.art = item.art ? item.id : 'poster';
+  image.src = item.art || Atlas.projects.get(item.id).poster;
+}
 
 function renderHero(announce = false) {
   const item = recent[heroIndex];
   const project = Atlas.projects.get(item.id);
   const announcement = Atlas.announcements.get(item.id);
   const title = item.title || project.title;
-  heroImage.src = item.art || project.poster;
-  heroImage.dataset.art = item.art ? item.id : 'poster';
   $('#hero-label').textContent = Atlas.upcomingIds.has(item.id) ? 'Ожидается' : 'Новые проекты Marvel';
   $('#hero-title').textContent = title;
   $('#hero-description').textContent = item.description;
@@ -250,27 +275,91 @@ function renderHero(announce = false) {
   link.innerHTML = announcement ? icons.external : icons.play;
   link.classList.toggle('is-premiere', Boolean(announcement));
   link.append(label);
-  $('#hero-index').textContent = twoDigits(heroIndex + 1) + ' / ' + twoDigits(recent.length);
+  heroDots.forEach((button, index) => {
+    if (index === heroIndex) button.setAttribute('aria-current', 'true');
+    else button.removeAttribute('aria-current');
+  });
   if (announce) $('#hero-announcement').textContent = title;
 }
 
-function scheduleHero() {
-  clearTimeout(heroTimer);
-  pause.textContent = heroPaused ? '▶' : 'Ⅱ';
-  pause.setAttribute('aria-label', heroPaused ? 'Включить автопереключение' : 'Остановить автопереключение');
-  if (heroPaused || document.hidden || hero.matches(':focus-within, :hover')) return;
-  heroTimer = setTimeout(() => {
-    heroIndex = (heroIndex + 1) % recent.length;
-    renderHero();
-    scheduleHero();
-  }, 10000);
+async function changeHero(index) {
+  if (heroChanging || index === heroIndex) return;
+  heroChanging = true;
+  hero.classList.add('is-changing');
+  setHeroImage(heroBuffer, recent[index]);
+  try {
+    // Complete the copy fade and decode the next image before starting the crossfade.
+    await Promise.all([
+      heroBuffer.decode(),
+      ...heroContent.getAnimations().map(animation => animation.finished.catch(() => {})),
+    ]);
+    if (!reducedMotion.matches) {
+      const timing = { duration: 330, easing: 'ease-in-out', fill: 'forwards' };
+      const outgoing = heroImage.animate([{ opacity: 1 }, { opacity: 0 }], timing);
+      const incoming = heroBuffer.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+      await Promise.all([outgoing.finished, incoming.finished]);
+      heroImage.classList.remove('is-active');
+      heroBuffer.classList.add('is-active');
+      outgoing.cancel();
+      incoming.cancel();
+    } else {
+      heroImage.classList.remove('is-active');
+      heroBuffer.classList.add('is-active');
+    }
+    [heroImage, heroBuffer] = [heroBuffer, heroImage];
+    heroIndex = index;
+    renderHero(true);
+  } catch {
+    // Keep the current slide if the next artwork cannot be displayed.
+  } finally {
+    heroChanging = false;
+    hero.classList.remove('is-changing');
+  }
 }
 
-function stepHero(delta) {
-  heroIndex = (heroIndex + delta + recent.length) % recent.length;
-  heroPaused = true;
-  renderHero(true);
-  scheduleHero();
+hero.addEventListener('pointerdown', event => {
+  if (heroChanging || !event.isPrimary || event.button !== 0 || event.target.closest('.hero-pages')) return;
+  heroGesture = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
+});
+
+hero.addEventListener('pointermove', event => {
+  if (heroGesture?.id !== event.pointerId || heroGesture.dragging) return;
+  const horizontal = Math.abs(event.clientX - heroGesture.x);
+  const vertical = Math.abs(event.clientY - heroGesture.y);
+  if (vertical > 10 && vertical >= horizontal) {
+    heroGesture = undefined;
+  } else if (horizontal > 10 && horizontal > vertical * 1.25) {
+    heroGesture.dragging = true;
+    hero.setPointerCapture(event.pointerId);
+    hero.classList.add('is-changing', 'is-dragging');
+  }
+});
+
+function finishHeroGesture(event) {
+  if (heroGesture?.id !== event.pointerId) return;
+  const distance = event.clientX - heroGesture.x;
+  const threshold = Math.min(54, hero.clientWidth * .14);
+  const swipe = heroGesture.dragging && event.type === 'pointerup' && Math.abs(distance) >= threshold;
+  heroGesture = undefined;
+  hero.classList.remove('is-dragging');
+  if (swipe) {
+    changeHero(wrapHero(heroIndex + (distance < 0 ? 1 : -1)));
+  } else {
+    hero.classList.remove('is-changing');
+  }
+}
+
+for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  hero.addEventListener(event, finishHeroGesture);
+}
+hero.addEventListener('pointerleave', event => {
+  if (!heroGesture?.dragging) finishHeroGesture(event);
+});
+
+function progressLine(label, watched, total) {
+  const line = element('p', 'progress-line');
+  line.append(element('span', '', label), element('span', 'progress-value', watched + ' из ' + total));
+  return line;
 }
 
 function renderProgress() {
@@ -279,24 +368,43 @@ function renderProgress() {
     .sort((a, b) => a.phase - b.phase || byRelease(a, b));
   const next = available.find(project => !Atlas.isWatched(project.id));
   const watched = available.filter(project => Atlas.isWatched(project.id)).length;
-  const phase = next ? available.filter(project => project.phase === next.phase) : [];
-  const phaseProgress = next ? ' · Фаза ' + next.phase + ' · ' + phase.filter(project => Atlas.isWatched(project.id)).length + ' из ' + phase.length : '';
-  $('#progress-count').textContent = sagas[state.saga].name + ' · ' + watched + ' из ' + available.length + phaseProgress;
+  const phaseNumber = next?.phase ?? available.at(-1)?.phase;
+  const phase = available.filter(project => project.phase === phaseNumber);
+  const summary = $('#progress-count');
+  summary.replaceChildren(progressLine(sagas[state.saga].name, watched, available.length));
+  if (phase.length) {
+    const phaseWatched = phase.filter(project => Atlas.isWatched(project.id)).length;
+    const phaseLabel = 'Фаза ' + phaseNumber;
+    const bar = element('progress', 'progress-bar');
+    bar.max = phase.length;
+    bar.value = phaseWatched;
+    bar.setAttribute('aria-label', 'Прогресс просмотра · ' + phaseLabel);
+    summary.append(progressLine(phaseLabel, phaseWatched, phase.length), bar);
+  }
   const panel = $('#progress-next');
   if (!next) {
-    panel.replaceChildren(element('p', '', 'Все доступные проекты саги отмечены как просмотренные.'));
+    panel.replaceChildren(element('p', 'progress-complete', 'Все доступные проекты саги отмечены как просмотренные.'));
     return;
   }
+  const details = element('div', 'progress-project');
+  details.append(
+    element('p', 'progress-project-label', 'Следующий проект'),
+    element('h3', '', next.title),
+    element('p', 'progress-project-meta', next.year + ' · ' + next.type)
+  );
+  const actions = element('div', 'progress-actions');
   const link = element('a', 'action action-primary');
   link.textContent = setProjectLink(link, next);
   const button = element('button', 'action action-secondary');
   button.type = 'button';
   Atlas.setWatchedButton(button, next);
+  button.textContent = 'Отметить просмотр';
   button.addEventListener('click', () => {
     Atlas.toggleWatched(next.id);
     (panel.querySelector('button') || $('#progress-title')).focus({ preventScroll: true });
   });
-  panel.replaceChildren(element('strong', '', next.title), link, button);
+  actions.append(link, button);
+  panel.replaceChildren(makePoster(next), details, actions);
 }
 
 function renderUpcoming() {
@@ -349,16 +457,6 @@ function renderSearch() {
 }
 
 for (const button of sagaButtons) button.addEventListener('click', () => selectSaga(button.dataset.saga));
-$('#hero-prev').addEventListener('click', () => stepHero(-1));
-$('#hero-next').addEventListener('click', () => stepHero(1));
-pause.addEventListener('click', () => {
-  heroPaused = !heroPaused;
-  scheduleHero();
-});
-for (const event of ['focusin', 'focusout', 'mouseenter', 'mouseleave']) {
-  hero.addEventListener(event, () => queueMicrotask(scheduleHero));
-}
-document.addEventListener('visibilitychange', scheduleHero);
 Atlas.onProgress(() => {
   for (const button of document.querySelectorAll('[data-watch]')) {
     Atlas.setWatchedButton(button, Atlas.projects.get(button.dataset.watch), true);
@@ -388,4 +486,3 @@ dialog.addEventListener('click', event => {
 renderSaga();
 renderUpcoming();
 renderHero();
-scheduleHero();

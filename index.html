@@ -9,12 +9,12 @@
   <meta name="description" content="Две саги и шесть фаз Marvel. Фильмы, сериалы и спецвыпуски в порядке выхода.">
   <title>MARVEL ATLAS — Каталог киновселенной</title>
   <link rel="icon" href="assets/atlas.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=poster-progress-1">
   <script defer src="https://telegram.org/js/telegram-web-app.js?64" integrity="sha384-PyI6uk8O3pfRRl4+CaepaS++FqtEbco/HaV3jzdYl4y+U7HMQvn3gWVfKhjuzfzG" crossorigin="anonymous"></script>
   <script defer src="telegram-init.js"></script>
   <script defer src="catalog.js"></script>
   <script defer src="atlas.js"></script>
-  <script defer src="app.js"></script>
+  <script defer src="app.js?v=poster-progress-1"></script>
 </head>
 <body>
   <a class="skip" href="#catalog">К каталогу</a>
@@ -39,7 +39,8 @@
   <main>
     <section class="hero" aria-label="Новые проекты Marvel">
       <div class="hero-art" aria-hidden="true">
-        <img class="hero-image is-active" id="hero-image" src="assets/hero-doomsday.jpg" alt="" fetchpriority="high">
+        <img class="hero-image is-active" data-art="doomsday" src="assets/hero-doomsday.jpg" alt="" fetchpriority="high" draggable="false">
+        <img class="hero-image" alt="" draggable="false">
       </div>
       <div class="hero-inner shell">
         <div class="hero-content">
@@ -52,22 +53,17 @@
             <a class="action action-secondary" href="#upcoming">Ожидается <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-5-5 5 5 5-5"/></svg></a>
           </div>
         </div>
-        <div class="hero-index" role="group" aria-label="Переключение проектов">
-          <button type="button" id="hero-prev" class="round" aria-label="Предыдущий проект"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
-          <span id="hero-index">01 / 05</span>
-          <button type="button" id="hero-next" class="round" aria-label="Следующий проект"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-          <button type="button" id="hero-pause" class="round" aria-label="Остановить автопереключение">Ⅱ</button>
-          <span id="hero-announcement" class="sr-only" role="status"></span>
-        </div>
+        <div id="hero-pages" class="hero-pages" role="group" aria-label="Выбрать афишу"></div>
+        <span id="hero-announcement" class="sr-only" role="status"></span>
       </div>
     </section>
 
-    <section class="shell progress-section" aria-labelledby="progress-title">
+    <section class="shell progress-section" id="my-watch" aria-labelledby="progress-title">
       <div class="progress-card">
-        <div>
+        <div class="progress-overview">
           <p class="eyebrow">Мой просмотр</p>
-          <h2 id="progress-title">Дальше по маршруту</h2>
-          <p id="progress-count" class="catalog-meta" aria-live="polite"></p>
+          <h2 id="progress-title" tabindex="-1">Дальше по маршруту</h2>
+          <div id="progress-count" class="progress-summary" aria-live="polite"></div>
         </div>
         <div id="progress-next" class="progress-next"></div>
       </div>
