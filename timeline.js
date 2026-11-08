@@ -1,16 +1,19 @@
 'use strict';
 
 const timelineCatalog = new Map(window.MARVEL_CATALOG.map(project => [project.id, project]));
-const { periods, routes, stories } = window.MARVEL_TIMELINE;
+const { periods, routes, stories, confirmedOrder, branchLinks } = window.MARVEL_TIMELINE;
 const storiesById = new Map(stories.map(story => [story.id, story]));
 const periodByStory = new Map(periods.flatMap(period => period.ids.map(id => [id, period])));
-const cardButtons = new Map();
-const viewButtons = new Map();
+const confirmed = new Set(confirmedOrder.map(pair => pair.join(':')));
+const branches = new Set(branchLinks.map(pair => pair.join(':')));
 const find = selector => document.querySelector(selector);
-const track = find('#timeline-track');
+const viewport = find('#map-viewport');
+const world = find('#map-world');
+const lanesElement = find('#map-lanes');
+const wires = find('#map-wires');
+const viewSelect = find('#timeline-view');
 const search = find('#timeline-search');
-const viewTitle = find('#timeline-view-title');
-const viewCount = find('#timeline-view-count');
+const guide = find('.map-guide');
 const detail = find('#timeline-detail');
 const storyTitle = find('#story-title');
 const storyPoster = find('#story-poster');
@@ -24,16 +27,32 @@ const spoilerStatus = find('#spoiler-status');
 const spoilerBody = find('#spoiler-fields');
 const relatedList = find('#story-related');
 const relatedSection = find('#related-section');
-const arrows = find('#timeline-arrows');
-const previous = find('#timeline-prev');
-const next = find('#timeline-next');
 const spoilerFields = {
   summary: find('#spoiler-summary'),
   ending: find('#spoiler-ending'),
   impact: find('#spoiler-impact'),
 };
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-let activeView = periods[0];
+const controls = {
+  out: find('#zoom-out'),
+  in: find('#zoom-in'),
+  fit: find('#zoom-fit'),
+  value: find('#zoom-value'),
+  minimap: find('#map-minimap'),
+  miniSvg: find('#map-mini-svg'),
+};
+const camera = createTimelineCamera(viewport, world, controls);
+const cardWidth = 178;
+const cardHeight = 174;
+const horizontalStep = 223;
+const laneStep = 282;
+const laneLabels = {
+  timeline: 'Основная линия MCU',
+  branch: 'Ответвления и другие вселенные',
+  undated: 'Точный год действия неизвестен',
+  route: 'Маршрут по связанным историям',
+};
+const cardNodes = new Map();
+const mobileSheet = matchMedia('(max-width: 660px)');
 let selected;
 
 function element(tag, className, text) {
@@ -47,38 +66,27 @@ function nameOf(story) {
   return [timelineCatalog.get(story.id).title, story.season].filter(Boolean).join(' · ');
 }
 
-function positionOnTrack(story) {
-  const card = cardButtons.get(story.id);
-  const offset = card.parentElement.getBoundingClientRect().left - track.getBoundingClientRect().left;
-  track.scrollTo({ left: track.scrollLeft + offset, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
-}
-
-function bringDetailIntoView() {
-  detail.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
-}
-
-function makeNode(story) {
-  const item = element('li', story.branch ? 'timeline-alt-node' : '');
-  const button = element('button', 'timeline-node');
+function createCard(story, position) {
+  const button = element('button', story.branch ? 'map-node is-branch' : 'map-node');
   button.type = 'button';
+  button.title = nameOf(story);
+  button.dataset.story = story.id;
   button.setAttribute('aria-pressed', 'false');
-
-  const dot = element('span', 'timeline-dot');
-  dot.setAttribute('aria-hidden', 'true');
-  const poster = element('img', 'timeline-thumb');
+  const poster = element('img');
   poster.src = timelineCatalog.get(story.id).poster;
   poster.alt = '';
   poster.loading = 'lazy';
+  poster.decoding = 'async';
   poster.draggable = false;
-  button.append(element('span', 'timeline-year', story.time), dot, poster, element('span', 'timeline-node-title', nameOf(story)));
-
-  button.addEventListener('click', () => {
-    showStory(story);
-    bringDetailIntoView();
+  const meta = element('span', 'map-node-meta');
+  meta.append(element('span', 'map-node-title', nameOf(story)), element('span', 'map-node-time', story.time));
+  button.append(poster, meta);
+  button.addEventListener('click', () => openStory(story));
+  button.addEventListener('focus', () => {
+    if (button.matches(':focus-visible')) camera.reveal(position);
   });
-  cardButtons.set(story.id, button);
-  item.append(button);
-  return item;
+  cardNodes.set(story.id, { button, position });
+  return button;
 }
 
 function showSpoiler(open) {
@@ -96,32 +104,30 @@ function showSpoiler(open) {
     node.parentElement.hidden = !selected[field];
     node.textContent = open ? selected[field] || '' : '';
   }
-
-  relatedList.replaceChildren();
   relatedSection.hidden = !open || selected.related.length === 0;
+  relatedList.replaceChildren();
   if (!open) return;
   for (const id of selected.related) {
     const story = storiesById.get(id);
     const button = element('button', '', nameOf(story) + ' →');
     button.type = 'button';
     button.addEventListener('click', () => {
-      if (cardButtons.has(story.id)) {
-        showStory(story);
-        positionOnTrack(story);
-      } else {
-        setView(periodByStory.get(story.id), story.id);
+      if (!cardNodes.has(id)) {
+        search.value = '';
+        viewSelect.value = periodByStory.get(id).id;
+        renderMap();
       }
-      storyTitle.focus({ preventScroll: true });
-      bringDetailIntoView();
+      camera.focus(cardNodes.get(id).position, true);
+      openStory(story);
     });
     relatedList.append(button);
   }
 }
 
-function showStory(story) {
-  cardButtons.get(selected?.id)?.setAttribute('aria-pressed', 'false');
+function openStory(story) {
+  cardNodes.get(selected?.id)?.button.setAttribute('aria-pressed', 'false');
   selected = story;
-  cardButtons.get(story.id).setAttribute('aria-pressed', 'true');
+  cardNodes.get(story.id).button.setAttribute('aria-pressed', 'true');
   const project = timelineCatalog.get(story.id);
   detail.hidden = false;
   storyTitle.textContent = nameOf(story);
@@ -135,15 +141,35 @@ function showStory(story) {
   storyWatch.href = project.href;
   storyWatch.querySelector('span').textContent = project.searchLink ? 'Найти на Rezka' : 'Открыть на Rezka';
   showSpoiler(false);
+  detail.scrollTop = 0;
+  storyTitle.focus({ preventScroll: true });
+  keepCardInSight();
+}
+
+function keepCardInSight() {
+  if (!mobileSheet.matches) return;
+  const { position } = cardNodes.get(selected.id);
+  const sheetTop = detail.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+  camera.keepAbove(position, sheetTop);
+}
+
+function closeStory(restoreFocus = true) {
+  if (detail.hidden) return;
+  const previous = cardNodes.get(selected.id)?.button;
+  showSpoiler(false);
+  detail.hidden = true;
+  previous?.setAttribute('aria-pressed', 'false');
+  selected = undefined;
+  if (restoreFocus) previous?.focus({ preventScroll: true });
 }
 
 function normalize(text) {
   return text.toLowerCase().replaceAll('ё', 'е').replaceAll('э', 'е').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-const searchable = periods.flatMap(period => period.ids.map(id => {
-  const project = timelineCatalog.get(id);
-  return { id, text: normalize(project.title + ' ' + project.english) };
+const searchable = new Map(stories.map(story => {
+  const project = timelineCatalog.get(story.id);
+  return [story.id, normalize(project.title + ' ' + project.english + ' ' + story.time)];
 }));
 
 function projectCount(count) {
@@ -153,104 +179,162 @@ function projectCount(count) {
   return count + ' ' + noun;
 }
 
-function renderBoard(storyId) {
+function exactYears(story) {
+  if (/около/i.test(story.time)) return [];
+  return (story.time.match(/(?:19|20)\d{2}/g) || []).map(Number);
+}
+
+function wireBetween(kind, from, to) {
+  const pair = from + ':' + to;
+  if (kind === 'route') return { className: 'route-wire', marker: 'violet' };
+  if (kind === 'branch') return branches.has(pair) ? { className: 'branch-wire', marker: 'violet' } : null;
+  if (kind !== 'timeline') return null;
+  const earlier = exactYears(storiesById.get(from));
+  const later = exactYears(storiesById.get(to));
+  if (confirmed.has(pair) || (earlier.length && later.length && Math.max(...earlier) < Math.min(...later))) {
+    return { className: 'chronology-wire', marker: 'gold' };
+  }
+  return { className: 'chronology-wire is-parallel' };
+}
+
+function svg(tag, attributes) {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+  return node;
+}
+
+function createMarkers() {
+  const defs = svg('defs', {});
+  for (const tone of ['gold', 'violet']) {
+    const marker = svg('marker', { id: 'map-arrow-' + tone, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 5, markerHeight: 5, orient: 'auto' });
+    marker.append(svg('path', { d: 'M0 0 8 4 0 8z', class: 'map-wire-arrow-' + tone }));
+    defs.append(marker);
+  }
+  return defs;
+}
+
+function addWire(d, edge) {
+  const path = svg('path', { d, class: edge.className });
+  if (edge.marker) path.setAttribute('marker-end', 'url(#map-arrow-' + edge.marker + ')');
+  wires.append(path);
+}
+
+function drawLane(group, index, searching) {
+  const kind = group.kind || 'timeline';
+  const x = 49;
+  const y = 18 + index * laneStep;
+  const width = (group.ids.length - 1) * horizontalStep + cardWidth;
+  const section = element('section', 'map-lane');
+  section.dataset.kind = kind;
+  section.style.left = x + 'px';
+  section.style.top = y + 'px';
+  section.style.width = width + 'px';
+  section.style.height = (59 + cardHeight) + 'px';
+  const title = element('h2', '', group.title);
+  title.id = 'map-lane-' + group.id;
+  section.setAttribute('aria-labelledby', title.id);
+  section.append(title, element('p', 'map-lane-label', laneLabels[kind] + ' · ' + projectCount(group.ids.length)));
+  for (const [cardIndex, id] of group.ids.entries()) {
+    const position = { x: x + cardIndex * horizontalStep, y: y + 59, width: cardWidth, height: cardHeight };
+    const card = createCard(storiesById.get(id), position);
+    card.style.left = (position.x - x) + 'px';
+    card.style.top = (position.y - y) + 'px';
+    section.append(card);
+    const next = group.ids[cardIndex + 1];
+    if (!next || searching) continue;
+    const edge = wireBetween(kind, id, next);
+    if (!edge) continue;
+    const midY = position.y + 77;
+    addWire(`M ${position.x + cardWidth + 2} ${midY} H ${position.x + horizontalStep - 5}`, edge);
+  }
+  lanesElement.append(section);
+  return { x, y, kind, width };
+}
+
+function renderMap() {
+  closeStory(false);
   const query = normalize(search.value);
   const words = query.split(' ');
-  const ids = query
-    ? searchable.filter(entry => words.every(word => entry.text.includes(word))).map(entry => entry.id)
-    : activeView.ids;
-  const isRoute = !query && routes.includes(activeView);
-  viewTitle.textContent = query ? 'Результаты поиска' : activeView.title;
-  viewCount.textContent = ids.length ? projectCount(ids.length) : 'Ничего не найдено';
-  for (const [id, button] of viewButtons) {
-    button.setAttribute('aria-pressed', String(!query && id === activeView.id));
+  const route = routes.find(candidate => candidate.id === viewSelect.value);
+  const period = periods.find(candidate => candidate.id === viewSelect.value);
+  const groups = query
+    ? periods.map(group => ({ ...group, ids: group.ids.filter(id => words.every(word => searchable.get(id).includes(word))) })).filter(group => group.ids.length)
+    : route ? [{ ...route, kind: 'route' }] : period ? [period] : periods;
+  const count = groups.reduce((sum, group) => sum + group.ids.length, 0);
+  const status = query ? 'Результаты поиска' : route?.title || period?.title || 'Вся хронология';
+  find('#map-status').textContent = status + ' · ' + projectCount(count);
+  find('#map-empty').hidden = count !== 0;
+  find('#map-controls').hidden = count === 0;
+  controls.minimap.hidden = count === 0;
+  cardNodes.clear();
+  lanesElement.replaceChildren();
+  wires.replaceChildren(createMarkers());
+  const lanes = groups.map((group, index) => drawLane(group, index, Boolean(query)));
+  if (!query && viewSelect.value === 'all') {
+    for (const [index, lane] of lanes.entries()) {
+      const nextLane = lanes[index + 1];
+      if (lane.kind !== 'timeline' || nextLane?.kind !== 'timeline') continue;
+      addWire(`M 24 ${lane.y + 234} V ${nextLane.y + 9} H 41`, { className: 'chronology-wire', marker: 'gold' });
+    }
   }
-  cardButtons.clear();
-  track.classList.toggle('timeline-flow', isRoute);
-  track.replaceChildren(...ids.map(id => makeNode(storiesById.get(id))));
-  track.scrollLeft = 0;
-  track.hidden = ids.length === 0;
-  detail.hidden = ids.length === 0;
-  if (ids.length) {
-    const story = storiesById.get(ids.includes(storyId) ? storyId : ids[0]);
-    showStory(story);
-    if (storyId) positionOnTrack(story);
-  }
-  updateArrows();
+  const width = Math.max(320, ...lanes.map(lane => lane.x + lane.width + 42));
+  const height = Math.max(200, (lanes.length - 1) * laneStep + 278);
+  wires.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  world.style.setProperty('--node-width', cardWidth + 'px');
+  world.style.setProperty('--node-height', cardHeight + 'px');
+  camera.setScene({ width, height, lanes });
 }
 
-function setView(view, storyId) {
-  search.value = '';
-  activeView = view;
-  renderBoard(storyId);
-}
-
-function updateArrows() {
-  const available = track.scrollWidth - track.clientWidth;
-  arrows.hidden = available < 2;
-  previous.disabled = track.scrollLeft < 2;
-  next.disabled = track.scrollLeft > available - 2;
-}
-
-function addViewButtons(views, group) {
+function appendOptions(label, views) {
+  const group = document.createElement('optgroup');
+  group.label = label;
   for (const view of views) {
-    const button = element('button', '', view.title);
-    button.type = 'button';
-    button.addEventListener('click', () => setView(view));
-    viewButtons.set(view.id, button);
-    group.append(button);
+    const option = element('option', '', view.title);
+    option.value = view.id;
+    group.append(option);
   }
+  viewSelect.append(group);
 }
 
-addViewButtons(periods, find('#timeline-periods'));
-addViewButtons(routes, find('#timeline-routes'));
-search.addEventListener('input', () => renderBoard());
+appendOptions('Периоды и ветки', periods);
+appendOptions('Сюжетные маршруты', routes);
+viewSelect.addEventListener('change', () => {
+  search.value = '';
+  renderMap();
+});
+search.addEventListener('input', renderMap);
+spoilerButton.addEventListener('click', () => {
+  showSpoiler(spoilerPanel.hidden);
+  keepCardInSight();
+});
+find('#story-close').addEventListener('click', () => closeStory());
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  if (!detail.hidden) closeStory();
+  else if (guide.open) guide.open = false;
+});
+viewport.addEventListener('pointerdown', () => { guide.open = false; });
 
-function scrollTrack(direction) {
-  track.scrollBy({ left: direction * track.clientWidth * .78, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+const sheetHandle = find('.story-sheet-top');
+let sheetDrag;
+sheetHandle.addEventListener('pointerdown', event => {
+  if (!mobileSheet.matches || event.button !== 0 || event.target.closest('button')) return;
+  sheetDrag = { pointerId: event.pointerId, y: event.clientY };
+  sheetHandle.setPointerCapture(event.pointerId);
+});
+sheetHandle.addEventListener('pointermove', event => {
+  if (sheetDrag?.pointerId !== event.pointerId) return;
+  detail.style.transform = `translateY(${Math.max(0, event.clientY - sheetDrag.y)}px)`;
+});
+function finishSheetDrag(event) {
+  if (sheetDrag?.pointerId !== event.pointerId) return;
+  const distance = event.clientY - sheetDrag.y;
+  sheetDrag = undefined;
+  detail.style.transform = '';
+  if (event.type === 'pointerup' && distance > 55) closeStory();
 }
+sheetHandle.addEventListener('pointerup', finishSheetDrag);
+sheetHandle.addEventListener('pointercancel', finishSheetDrag);
+sheetHandle.addEventListener('lostpointercapture', finishSheetDrag);
 
-previous.addEventListener('click', () => scrollTrack(-1));
-next.addEventListener('click', () => scrollTrack(1));
-track.addEventListener('scroll', updateArrows, { passive: true });
-new ResizeObserver(updateArrows).observe(track);
-spoilerButton.addEventListener('click', () => showSpoiler(spoilerPanel.hidden));
-
-// Touch devices use the browser's native horizontal scrolling.
-let drag;
-let dragged = false;
-track.addEventListener('pointerdown', event => {
-  if (event.pointerType !== 'mouse' || event.button !== 0) return;
-  drag = { pointer: event.pointerId, x: event.clientX, left: track.scrollLeft };
-  dragged = false;
-});
-track.addEventListener('pointermove', event => {
-  if (drag?.pointer !== event.pointerId) return;
-  const delta = event.clientX - drag.x;
-  if (!dragged && Math.abs(delta) < 7) return;
-  if (!dragged) {
-    dragged = true;
-    track.setPointerCapture(event.pointerId);
-    track.classList.add('is-dragging');
-  }
-  track.scrollLeft = drag.left - delta;
-});
-function stopDrag(event) {
-  if (drag?.pointer !== event.pointerId) return;
-  drag = null;
-  track.classList.remove('is-dragging');
-}
-track.addEventListener('pointerup', stopDrag);
-track.addEventListener('pointercancel', stopDrag);
-track.addEventListener('lostpointercapture', stopDrag);
-track.addEventListener('pointerleave', event => {
-  if (!dragged) stopDrag(event);
-});
-track.addEventListener('click', event => {
-  if (!dragged || !event.detail) return;
-  dragged = false;
-  event.preventDefault();
-  event.stopPropagation();
-}, { capture: true });
-
-renderBoard();
+renderMap();

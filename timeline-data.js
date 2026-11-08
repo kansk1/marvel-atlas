@@ -6,8 +6,8 @@ window.MARVEL_TIMELINE = {
     { id: 'return', title: '2023–2024', ids: ['endgame', 'wandavision', 'shang-chi', 'falcon-winter-soldier', 'spider-man-far-from-home', 'no-way-home', 'eternals', 'multiverse-of-madness', 'hawkeye'] },
     { id: 'new-heroes', title: 'Около 2025', ids: ['moon-knight', 'wakanda-forever', 'echo', 'she-hulk', 'ms-marvel', 'love-and-thunder', 'ironheart', 'holiday-special'] },
     { id: 'later', title: '2026 и дальше', ids: ['quantumania', 'gotg-vol-3', 'secret-invasion', 'the-marvels', 'agatha-all-along', 'daredevil-born-again', 'brave-new-world', 'thunderbolts', 'brand-new-day'] },
-    { id: 'branches', title: 'Другие ветки', ids: ['loki', 'what-if', 'deadpool-wolverine', 'friendly-spider-man', 'fantastic-four', 'marvel-zombies'] },
-    { id: 'undated', title: 'Без точного года', ids: ['werewolf-by-night', 'wonder-man', 'punisher', 'visionquest', 'doomsday'] },
+    { id: 'branches', title: 'Другие ветки', kind: 'branch', ids: ['loki', 'deadpool-wolverine', 'friendly-spider-man', 'fantastic-four', 'what-if', 'marvel-zombies'] },
+    { id: 'undated', title: 'Без точного года', kind: 'undated', ids: ['werewolf-by-night', 'wonder-man', 'punisher', 'visionquest', 'doomsday'] },
   ],
   routes: [
     { id: 'spider', title: 'Человек-паук', ids: ['civil-war', 'spider-man-homecoming', 'infinity-war', 'endgame', 'spider-man-far-from-home', 'no-way-home', 'brand-new-day'] },
@@ -15,6 +15,17 @@ window.MARVEL_TIMELINE = {
     { id: 'team', title: 'Мстители', ids: ['first-avenger', 'iron-man', 'avengers', 'age-of-ultron', 'civil-war', 'infinity-war', 'endgame', 'falcon-winter-soldier', 'brave-new-world', 'thunderbolts'] },
     { id: 'guardians', title: 'Стражи Галактики', ids: ['guardians-1', 'guardians-2', 'i-am-groot', 'infinity-war', 'endgame', 'love-and-thunder', 'holiday-special', 'gotg-vol-3'] },
     { id: 'streets', title: 'Улицы Нью-Йорка', ids: ['hawkeye', 'echo', 'daredevil-born-again', 'punisher'] },
+  ],
+  confirmedOrder: [
+    ['thor-dark-world', 'iron-man-3'],
+    ['guardians-1', 'guardians-2'],
+    ['age-of-ultron', 'ant-man'],
+    ['civil-war', 'black-widow'],
+    ['endgame', 'wandavision'],
+    ['spider-man-far-from-home', 'no-way-home'],
+  ],
+  branchLinks: [
+    ['what-if', 'marvel-zombies'],
   ],
   stories: [
     {
