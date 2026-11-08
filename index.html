@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090b">
+  <meta name="description" content="Две саги и шесть фаз Marvel. Фильмы, сериалы и спецвыпуски в порядке выхода.">
+  <title>MARVEL ATLAS — Каталог киновселенной</title>
+  <link rel="icon" href="assets/atlas.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="catalog.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#catalog">К каталогу</a>
+  <header class="topbar">
+    <div class="topbar-inner shell">
+      <a class="brand" href="#" aria-label="Marvel Atlas, на главную">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M5.5 23.5 16 6l10.5 17.5M10 18h12M16 16v10M13 23h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span>MARVEL <strong>ATLAS</strong></span>
+      </a>
+      <nav class="saga-nav" aria-label="Саги">
+        <button type="button" data-saga="infinity" aria-pressed="true">Бесконечность</button>
+        <button type="button" data-saga="multiverse" aria-pressed="false">Мультивселенная</button>
+      </nav>
+      <button class="search-open" type="button" aria-label="Поиск по каталогу" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></svg>
+        <span>Поиск</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-art" aria-hidden="true">
+        <img class="hero-image is-active" data-art="infinity" src="assets/hero-infinity.jpg" alt="" fetchpriority="high">
+        <img class="hero-image" data-art="multiverse" src="assets/hero-multiverse.jpg" alt="">
+      </div>
+      <div class="hero-inner shell">
+        <div class="hero-content">
+          <p class="eyebrow"><span class="accent-dot"></span><span id="hero-label">Сага Бесконечности · 2008–2019</span></p>
+          <h1 id="hero-title">Мстители:<br>Финал</h1>
+          <p class="hero-meta" id="hero-meta"></p>
+          <p class="hero-description" id="hero-description"></p>
+          <div class="hero-actions">
+            <a class="action action-primary" id="hero-link" target="_blank" rel="noopener noreferrer"></a>
+            <a class="action action-secondary" href="#catalog">К каталогу <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-5-5 5 5 5-5"/></svg></a>
+          </div>
+        </div>
+        <div class="hero-index" aria-label="Сменить сагу">
+          <span id="hero-index">01</span><span class="index-divider"></span><span>02</span>
+          <button type="button" data-next-saga class="round" aria-label="Следующая сага"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="catalog shell" id="catalog" aria-labelledby="catalog-title">
+      <div class="catalog-heading">
+        <div>
+          <p class="eyebrow catalog-kicker" id="catalog-kicker"></p>
+          <h2 id="catalog-title"></h2>
+          <p class="catalog-meta" id="catalog-meta"></p>
+        </div>
+        <label class="sort">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h10M5 17h5"/></svg>
+          <span class="sr-only">Порядок проектов</span>
+          <select id="sort">
+            <option value="release">Сначала ранние</option>
+            <option value="latest">Сначала новые</option>
+            <option value="rating">По рейтингу</option>
+          </select>
+          <svg class="sort-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </label>
+      </div>
+      <div class="phase-filters" id="phase-filters" role="group" aria-label="Фильтр по фазам"></div>
+      <div id="shelves"></div>
+      <a class="source-link" id="collection-link" href="https://rezka.fi/franchises/1991-vse-proekty-sagi-multivselennoy/" target="_blank" rel="noopener noreferrer" hidden>Подборка саги на Rezka <span aria-hidden="true">↗</span></a>
+    </section>
+  </main>
+
+  <footer class="shell footer">
+    <span class="footer-brand">MARVEL ATLAS</span>
+    <span>Фанатский каталог · Постеры и кадры © правообладателей</span>
+    <a href="#">Наверх ↑</a>
+  </footer>
+
+  <dialog class="search-dialog" aria-labelledby="search-title">
+    <div class="search-head">
+      <h2 id="search-title">Поиск по каталогу</h2>
+      <form method="dialog"><button class="round" aria-label="Закрыть поиск"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10m0-10L7 17"/></svg></button></form>
+    </div>
+    <label class="search-field">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></svg>
+      <span class="sr-only">Название, год или фаза</span>
+      <input type="search" placeholder="Название, год или фаза" autocomplete="off" autofocus>
+    </label>
+    <p class="search-status" role="status"></p>
+    <div class="search-results"></div>
+  </dialog>
+</body>
+</html>
