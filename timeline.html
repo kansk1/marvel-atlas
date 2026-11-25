@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org/js/telegram-web-app.js; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#08090b">
@@ -11,8 +11,9 @@
   <link rel="icon" href="assets/atlas.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="timeline.css">
-  <script defer src="https://telegram.org/js/telegram-web-app.js?64" integrity="sha384-PyI6uk8O3pfRRl4+CaepaS++FqtEbco/HaV3jzdYl4y+U7HMQvn3gWVfKhjuzfzG" crossorigin="anonymous"></script>
-  <script defer src="telegram-init.js"></script>
+  <!-- Local copy of https://telegram.org/js/telegram-web-app.js?65. -->
+  <script defer src="assets/telegram-web-app.js"></script>
+  <script defer src="telegram-init.js?v=2"></script>
   <script defer src="catalog.js"></script>
   <script defer src="atlas.js"></script>
   <script defer src="timeline-data.js"></script>
