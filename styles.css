@@ -11,6 +11,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+.telegram-miniapp, .telegram-miniapp body { overscroll-behavior-y: none; }
+.telegram-miniapp :is(a, button, img, summary) { -webkit-touch-callout: none; }
+.telegram-miniapp :is(a, img) { -webkit-user-drag: none; }
 body { margin: 0; background: var(--ink); color: var(--text); }
 body[data-saga="multiverse"] { --accent: #c5acff; }
 body:has(dialog[open]) { overflow: hidden; }
